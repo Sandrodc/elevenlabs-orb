@@ -33,7 +33,7 @@ The switch under the orb (or keys `1` `2` `3`) sets what the orb is "doing". The
 | State | Voice | Effect |
 | --- | --- | --- |
 | **Idle** | — | The site's resting values. |
-| **Listening** | your mic (or simulated) | Shrinks to about 80%, clearly smaller than the other states, and calms down: lower contrast and saturation, less swirl, slower, a little brighter. The highlight ring follows the user's voice, and the orb draws in slightly further while they talk. |
+| **Listening** | your mic (or simulated) | At rest it shrinks to 80% and goes soft: lower contrast and saturation, less swirl, slower, a little brighter. Your voice brings it to life: it swells towards 92% (still smaller than the other states), and the swirl strengthens and speeds up. Colour and contrast come back, it brightens, and the highlight ring flares. |
 | **Speaking** | agent | Stronger and faster swirl, slightly brighter and more saturated. Each syllable makes the orb swell towards full size, makes the swirl surge, and flares the ring. |
 
 - **Blending:** switching states blends every value over about 0.35 s with a critically damped ease, so nothing jumps.
@@ -47,7 +47,7 @@ By default, Listening follows your microphone. The **Listening input** control i
 - **Starting:** the mic starts when you pick Listening with a click or the `2` key. Browsers only allow audio to start after a user action, so a link that opens straight into Listening waits for that click.
 - **Stopping:** the mic stops as soon as you leave Listening or switch to Simulated.
 - **Privacy:** the audio is only measured for loudness, inside the browser. It's never recorded, stored or sent anywhere.
-- **Loudness scale:** −60 dBFS maps to 0 and −24 dBFS maps to 1 (`js/mic.js`). The level is smoothed with a quick attack (~30 ms) and a slower release (~200 ms).
+- **Loudness scale:** −60 dBFS maps to 0 and −24 dBFS maps to 1 (`js/mic.js`). The level is smoothed with a quick attack (~50 ms) and a slower release (~180 ms).
 - **Fallback:** if the mic is blocked, missing or disconnected, the simulated voice takes over and a message says so. The mic needs a secure page (`https://` or `localhost`).
 - **Exports:**
   - A normal video recorded while the mic is live follows your voice.

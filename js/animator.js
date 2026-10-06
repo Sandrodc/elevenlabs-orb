@@ -16,10 +16,12 @@
     listening: {
       label: 'Listening',
       voice: 'user',
-      // Shrinks well below the other states, softens (lower contrast and
-      // saturation) and calms down; flickers with the user's voice.
-      base: { circleSize: 0.8, fbmAmplitude: 0.5, noiseAmplitude: 0.11, exposure: 0.2, saturation: 0.75, contrast: -0.14, ring: 0.3, activity: -0.35 },
-      react: { circleSize: -0.03, fbmAmplitude: 0.15, exposure: 0.04, ring: 0.7, ringShift: -2.5, activity: 0.6 },
+      // At rest: well below the other states' size, soft (lower contrast and
+      // saturation) and calm. The user's voice brings it to life: it swells
+      // (still smaller than Idle / Speaking at full voice), swirls faster,
+      // regains colour and contrast, brightens and flares the ring.
+      base: { circleSize: 0.8, fbmAmplitude: 0.5, noiseAmplitude: 0.11, exposure: 0.2, saturation: 0.75, contrast: -0.14, ring: 0.15, activity: -0.35 },
+      react: { circleSize: 0.12, fbmAmplitude: 0.45, noiseAmplitude: 0.12, exposure: 0.12, saturation: 0.25, contrast: 0.1, ring: 0.85, ringShift: -2.5, activity: 1.4 },
     },
     speaking: {
       label: 'Speaking',
@@ -166,7 +168,7 @@
       if (this.mic) {
         // Envelope follower: quick attack, slower release, like a VU meter.
         const target = this.mic.level();
-        const tau = target > this.micLevel ? 0.03 : 0.2;
+        const tau = target > this.micLevel ? 0.05 : 0.18;
         this.micLevel += (target - this.micLevel) * (1 - Math.exp(-dt / tau));
       }
       this.time += this.speedAt(this.loop ? this.phase : this.clock, true) * dt;
