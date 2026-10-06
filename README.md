@@ -33,12 +33,25 @@ The switch under the orb (or keys `1` `2` `3`) sets what the orb is "doing". The
 | State | Voice | Effect |
 | --- | --- | --- |
 | **Idle** | — | The site's resting values. |
-| **Listening** | user | Shrinks to about 80%, clearly smaller than the other states, and calms down: lower contrast and saturation, less swirl, slower, a little brighter. The highlight ring follows the user's voice, and the orb draws in slightly further while they talk. |
+| **Listening** | your mic (or simulated) | Shrinks to about 80%, clearly smaller than the other states, and calms down: lower contrast and saturation, less swirl, slower, a little brighter. The highlight ring follows the user's voice, and the orb draws in slightly further while they talk. |
 | **Speaking** | agent | Stronger and faster swirl, slightly brighter and more saturated. Each syllable makes the orb swell towards full size, makes the swirl surge, and flares the ring. |
 
 - **Blending:** switching states blends every value over about 0.35 s with a critically damped ease, so nothing jumps.
 - **Swirl speed:** the speed changes are added up over time rather than multiplying `uTime`. That way the swirl changes pace smoothly instead of skipping ahead.
 - **Seamless loops:** in loop mode, the voice frequencies snap to whole cycles of the loop length. That makes Listening and Speaking loops seamless too.
+
+### Microphone
+
+By default, Listening follows your microphone. The **Listening input** control in the sidebar switches between **Microphone** and **Simulated**.
+
+- **Starting:** the mic starts when you pick Listening with a click or the `2` key. Browsers only allow audio to start after a user action, so a link that opens straight into Listening waits for that click.
+- **Stopping:** the mic stops as soon as you leave Listening or switch to Simulated.
+- **Privacy:** the audio is only measured for loudness, inside the browser. It's never recorded, stored or sent anywhere.
+- **Loudness scale:** −60 dBFS maps to 0 and −24 dBFS maps to 1 (`js/mic.js`). The level is smoothed with a quick attack (~30 ms) and a slower release (~200 ms).
+- **Fallback:** if the mic is blocked, missing or disconnected, the simulated voice takes over and a message says so. The mic needs a secure page (`https://` or `localhost`).
+- **Exports:**
+  - A normal video recorded while the mic is live follows your voice.
+  - Seamless-loop exports always use the simulated voice, because live audio can't repeat exactly.
 
 To tune a state, edit `Orb.STATES` in `js/animator.js`. `base` holds the target values and `react` holds how much each value moves with the voice level.
 
@@ -65,6 +78,7 @@ js/presets.js     palettes + shader defaults
 js/texture.js     seeded gradient texture painter
 js/renderer.js    WebGL2 renderer + shader
 js/animator.js    agent states, synthetic voices, time + seamless-loop bookkeeping
+js/mic.js         live microphone loudness for the Listening state
 js/exporter.js    PNG / video export, preset thumbnails
 js/app.js         UI wiring, state, URL hash
 ```

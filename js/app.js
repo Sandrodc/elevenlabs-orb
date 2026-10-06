@@ -22,6 +22,7 @@
     videoFps: 30,
     videoFormat: null,
     recording: false,
+    voiceInput: 'mic', // what drives Listening: 'mic' or 'sim' (synthetic voice)
   };
 
   // Time, playback, loop and the Idle / Listening / Speaking state.
@@ -120,6 +121,7 @@
       renderer.render(f.time, f.loop);
       needsRender = false;
     }
+    if (anim.mic && anim.playing) showMicLevel(anim.micLevel);
     if (anim.playing && now - uiTick > 100) {
       uiTick = now;
       syncTime();
@@ -160,7 +162,11 @@
     }
     if (!observedSegmented.has(el)) {
       // Re-measure without animating when fonts load or the layout changes.
-      new ResizeObserver(() => moveIndicator(el, true)).observe(el);
+      // Buttons are observed too: a web font can resize them without changing
+      // the control's own box.
+      const ro = new ResizeObserver(() => moveIndicator(el, true));
+      ro.observe(el);
+      el.querySelectorAll('button').forEach((b) => ro.observe(b));
       observedSegmented.add(el);
     }
     moveIndicator(el, true);
@@ -442,7 +448,8 @@
     const dur = $('#videoDuration');
     dur.classList.toggle('disabled', anim.loop);
     $('#videoNote').textContent = anim.loop
-      ? `Loop is on — the video will be exactly one ${anim.loopSeconds}s seamless loop.`
+      ? `Loop is on — the video will be exactly one ${anim.loopSeconds}s seamless loop.` +
+        (state.voiceInput === 'mic' ? ' Listening uses the simulated voice so it can repeat.' : '')
       : 'Turn on Seamless loop for videos that repeat without a jump.';
     syncTime();
   }
@@ -518,14 +525,102 @@
   // ---------- Agent state ----------
 
   const stateEl = $('#orbState');
-  function setAgentState(id) {
+  // `fromUser`: picked with a click or key press, which browsers require
+  // before they'll start the microphone.
+  function setAgentState(id, fromUser = false) {
     if (!Orb.STATES[id]) return;
     anim.setState(id);
     setSegmented(stateEl, id);
     card.dataset.state = id;
     writeHash();
+    syncMic(fromUser);
   }
-  bindSegmented(stateEl, setAgentState);
+  bindSegmented(stateEl, (v) => setAgentState(v, true));
+
+  // ---------- Microphone (Listening input) ----------
+
+  const mic = new Orb.MicInput();
+  // off | waiting (needs a click) | pending (permission prompt) | live | blocked | unsupported
+  let micStatus = 'off';
+  const micIcon = stateEl.querySelector('.i-mic');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+  const MIC_NOTES = {
+    sim: 'A simulated voice drives the Listening state.',
+    off: 'Your mic turns on while the orb is Listening.',
+    waiting: 'Select Listening to turn on your mic.',
+    pending: 'Waiting for microphone permission…',
+    live: 'Mic live — the orb follows your voice.',
+    blocked: 'Mic blocked or unavailable — using a simulated voice.',
+    unsupported: 'Mic needs a secure page (https or localhost) — using a simulated voice.',
+  };
+
+  function micWanted() {
+    return anim.state === 'listening' && state.voiceInput === 'mic';
+  }
+
+  function syncMicUI() {
+    $('#micNote').textContent = MIC_NOTES[state.voiceInput === 'sim' ? 'sim' : micStatus];
+    $('#micMeter').hidden = micStatus !== 'live';
+    card.dataset.mic = micStatus === 'live' ? 'live' : '';
+    if (micStatus !== 'live') showMicLevel(0);
+  }
+
+  function showMicLevel(level) {
+    $('#micMeterBar').style.transform = `scaleX(${level.toFixed(3)})`;
+    micIcon.style.transform = level && !reduceMotion.matches ? `scale(${(1 + level * 0.35).toFixed(3)})` : '';
+  }
+
+  function releaseMic() {
+    mic.stop();
+    anim.mic = null;
+    anim.micLevel = 0;
+  }
+
+  async function syncMic(fromUser) {
+    if (!micWanted()) {
+      releaseMic();
+      micStatus = 'off';
+    } else if (mic.active || micStatus === 'pending') {
+      // already running or asking
+    } else if (!Orb.MicInput.supported) {
+      micStatus = 'unsupported';
+    } else if (!fromUser) {
+      micStatus = 'waiting';
+    } else {
+      micStatus = 'pending';
+      syncMicUI();
+      try {
+        await mic.start();
+        // The state may have changed while the permission prompt was open.
+        if (micWanted()) {
+          anim.mic = mic;
+          micStatus = 'live';
+        } else {
+          releaseMic();
+          micStatus = 'off';
+        }
+      } catch (err) {
+        console.warn('Microphone unavailable:', err);
+        micStatus = 'blocked';
+        toast('Microphone unavailable — using a simulated voice');
+      }
+    }
+    syncMicUI();
+  }
+
+  mic.onended = () => {
+    releaseMic();
+    micStatus = 'blocked';
+    syncMicUI();
+    toast('Microphone disconnected — using a simulated voice');
+  };
+
+  bindSegmented($('#voiceInput'), (v) => {
+    state.voiceInput = v;
+    syncMic(true);
+    syncLoop();
+  });
 
   // ---------- Caption ----------
 
@@ -630,7 +725,7 @@
       e.preventDefault();
       instant(() => setPlaying(!anim.playing));
     } else if (/^[1-9]$/.test(e.key) && STATE_IDS[+e.key - 1]) {
-      instant(() => setAgentState(STATE_IDS[+e.key - 1]));
+      instant(() => setAgentState(STATE_IDS[+e.key - 1], true));
     } else if (e.key === 'r' || e.key === 'R') {
       instant(() => setSeed(Math.floor(Math.random() * 100000)));
     } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && e.target.type !== 'range') {

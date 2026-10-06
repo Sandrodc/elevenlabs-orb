@@ -84,6 +84,8 @@
       this.time = 0; // shader time (uTime)
       this.clock = 0; // seconds of voice playback when not looping
       this.phase = 0; // seconds into the current loop
+      this.mic = null; // live input ({ level() → 0..1 }); replaces the synthetic user voice
+      this.micLevel = 0; // smoothed mic level
     }
 
     clone() {
@@ -111,9 +113,15 @@
       );
     }
 
-    levels(t = this.loop ? this.phase : this.clock) {
+    /**
+     * Voice levels at time t. `live` uses the mic (when connected) for the
+     * user voice; the loop-time integrals pass false because a live level only
+     * exists for "now".
+     */
+    levels(t = this.loop ? this.phase : this.clock, live = true) {
       const period = this.loop ? this.loopSeconds : 0;
-      return { user: voiceLevel('user', t, period), agent: voiceLevel('agent', t, period) };
+      const user = live && this.mic ? this.micLevel : voiceLevel('user', t, period);
+      return { user, agent: voiceLevel('agent', t, period) };
     }
 
     // One channel blended across states.
@@ -130,8 +138,8 @@
     }
 
     // Shader-time units per second at voice time t.
-    speedAt(t) {
-      const activity = this.channel('activity', this.levels(t));
+    speedAt(t, live = false) {
+      const activity = this.channel('activity', this.levels(t, live));
       return Orb.BASE_RATE * this.speed * Math.max(0.05, 1 + activity);
     }
 
@@ -155,7 +163,13 @@
         [this.weights[id], this.velocity[id]] = smoothDamp(this.weights[id], target, this.velocity[id], MORPH_TIME, dt);
       }
       if (!this.playing) return;
-      this.time += this.speedAt(this.loop ? this.phase : this.clock) * dt;
+      if (this.mic) {
+        // Envelope follower: quick attack, slower release, like a VU meter.
+        const target = this.mic.level();
+        const tau = target > this.micLevel ? 0.03 : 0.2;
+        this.micLevel += (target - this.micLevel) * (1 - Math.exp(-dt / tau));
+      }
+      this.time += this.speedAt(this.loop ? this.phase : this.clock, true) * dt;
       if (this.loop) {
         this.phase += dt;
         // Wrapping subtracts exactly what frame() adds for the cross-fade, so
@@ -210,9 +224,13 @@
       this.time = this.timeAtPhase(this.phase);
     }
 
-    /** A copy that records exactly one seamless loop, matching the preview. */
+    /**
+     * A copy that records exactly one seamless loop, matching the preview.
+     * Live mic input can't repeat, so loops always use the synthetic voice.
+     */
     forLoopExport(fps) {
       const c = this.clone();
+      c.mic = null;
       c.time = this.time - this.timeAtPhase(this.phase);
       c.phase = 0;
       c.playing = true;

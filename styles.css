@@ -179,6 +179,8 @@ svg { display: block; }
 .canvas-card[data-state="speaking"] .on .i-wave rect:nth-child(3) { animation-delay: -0.6s; }
 .canvas-card[data-state="speaking"] .on .i-wave rect:nth-child(4) { animation-delay: -0.15s; }
 .canvas-card[data-state="listening"] .on .i-mic { animation: listen 1.4s ease-in-out infinite; }
+/* With a live mic the icon follows the real input level (scaled from app.js). */
+.canvas-card[data-mic="live"] .on .i-mic { animation: none; }
 .canvas-card.is-paused .state-switch svg,
 .canvas-card.is-paused .state-switch rect { animation-play-state: paused; }
 
@@ -570,6 +572,27 @@ input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
 input[type="range"]:active::-moz-range-thumb { transform: scale(1.12); }
 input[type="range"]:focus-visible { outline: none; }
 input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.18); }
+
+/* Listening input */
+
+.row-label { font-size: 13px; }
+.mic-note { display: flex; align-items: center; gap: 8px; }
+/* Live input meter; the bar is scaled from app.js every frame. */
+.mic-meter {
+  flex: none;
+  width: 28px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+.mic-meter span {
+  display: block;
+  height: 100%;
+  background: #30A46C;
+  transform: scaleX(0);
+  transform-origin: left;
+}
 
 /* Toggles */
 
